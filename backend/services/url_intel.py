@@ -31,7 +31,7 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
     hostname_lower = hostname.lower()
     
     # Check for official trusted domains (whitelist to prevent false positives)
-    trusted_roots = ["google.com", "netflix.com", "paypal.com", "metamask.io", "chase.com", "venmo.com", "binance.com", "github.com"]
+    trusted_roots = ["google.com", "netflix.com", "netflix.in", "paypal.com", "metamask.io", "chase.com", "venmo.com", "binance.com", "github.com"]
     is_trusted = False
     for root in trusted_roots:
         if hostname_lower == root or hostname_lower.endswith("." + root):
