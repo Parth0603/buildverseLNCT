@@ -8,8 +8,26 @@ import type {
   DashboardStats
 } from './types';
 
-// Detect whether we are running inside Vercel or locally
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Resilient dynamic base URL resolver for local dev, sandboxes, or Vercel production deployments
+const getApiBaseUrl = (): string => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // Vercel serves APIs directly on the same origin (e.g. /api/analyze-message)
+    if (hostname.endsWith('.vercel.app') || hostname.includes('vercel')) {
+      return window.location.origin;
+    }
+    // If running in an integrated cloud preview environment, route requests through same-origin proxy prefix
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return `${window.location.origin}/_/backend`;
+    }
+  }
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export async function analyzeMessage(content: string): Promise<MessageScanResponse> {
   const response = await fetch(`${API_BASE_URL}/api/analyze-message`, {
