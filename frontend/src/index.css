@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  
+  --color-primary: #5B3DF5;
+  --color-primary-hover: #472bd4;
+  --color-primary-light: #EEECFE;
+  
+  --color-success: #16A34A;
+  --color-success-light: #DCFCE7;
+  
+  --color-warning: #F59E0B;
+  --color-warning-light: #FEF3C7;
+  
+  --color-danger: #DC2626;
+  --color-danger-light: #FEE2E2;
+  
+  --color-neutral-dark: #0F172A;
+  --color-neutral-gray: #64748B;
+  --color-neutral-light: #F8FAFC;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-neutral-dark font-sans antialiased;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300;
+}
+
+/* Custom focus ring styling utility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+}

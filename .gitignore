@@ -1,0 +1,81 @@
+# === System & OS Files ===
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.swp
+
+# === Environment Configurations (SENSITIVE KEYS) ===
+# This protects your Gemini and AssemblyAI API keys from being committed
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# === Dependency Directories ===
+node_modules/
+frontend/node_modules/
+jspm_packages/
+web_modules/
+
+# === Python Virtual Environments & Packages ===
+venv/
+.venv/
+env/
+ENV/
+lib/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.nox/
+.poetry/
+.pdm/
+.hypothesis/
+*.egg-info/
+.eggs/
+
+# === Python Cache & Compiled Files ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# === Build & Distribution Outputs ===
+dist/
+build/
+out/
+.next/
+.serverless/
+.docusaurus/
+
+# === Local Databases ===
+# Protects local SQLite databases from being committed
+*.db
+*.sqlite
+*.sqlite3
+backend/scamradar.db
+scamradar.db
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === IDE Configurations ===
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
