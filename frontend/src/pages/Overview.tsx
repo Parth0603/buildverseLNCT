@@ -119,7 +119,7 @@ export default function Overview({ setPage }: OverviewProps) {
           const Icon = icon;
 
           return (
-            <div key={index} className="bg-white border border-slate-100 p-6 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-200">
+            <div key={index} className="skeuo-card p-6 rounded-2xl flex flex-col justify-between">
               <div className="flex justify-between items-start">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{card.title}</span>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconColor}`}>
@@ -143,7 +143,7 @@ export default function Overview({ setPage }: OverviewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Main Column - Recent Reports */}
-        <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="lg:col-span-2 skeuo-card rounded-3xl p-6 space-y-5">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="font-extrabold text-slate-800 text-lg tracking-tight">Recent Threat Feed</h2>
@@ -191,7 +191,7 @@ export default function Overview({ setPage }: OverviewProps) {
         <div className="space-y-8">
           
           {/* Top reported domains */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="skeuo-card p-6 rounded-3xl space-y-4">
             <div>
               <h3 className="font-extrabold text-slate-800 tracking-tight">Most Flagged Domains</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Top Domain Blacklist</p>
@@ -213,7 +213,7 @@ export default function Overview({ setPage }: OverviewProps) {
           </div>
 
           {/* Top reported wallets */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="skeuo-card p-6 rounded-3xl space-y-4">
             <div>
               <h3 className="font-extrabold text-slate-800 tracking-tight">Most Flagged Wallets</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Crypto Scams Hotspots</p>

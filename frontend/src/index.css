@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Geist:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
@@ -15,18 +15,39 @@
   --color-warning: #F59E0B;
   --color-warning-light: #FEF3C7;
   
-  --color-danger: #DC2626;
-  --color-danger-light: #FEE2E2;
+  --color-danger: #ba1a1a;
+  --color-danger-light: #ffdad6;
   
-  --color-neutral-dark: #0F172A;
-  --color-neutral-gray: #64748B;
-  --color-neutral-light: #F8FAFC;
+  --color-neutral-dark: #141b2b;
+  --color-neutral-gray: #474556;
+  --color-neutral-light: #f9f9ff;
 }
 
 @layer base {
   body {
-    @apply bg-white text-neutral-dark font-sans antialiased;
+    @apply bg-[#f9f9ff] text-[#141b2b] font-sans antialiased;
   }
+}
+
+/* Stitch Premium Skeuomorphic Surfaces & Custom micro-interactions */
+.skeuo-card {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  border: 1px solid #E5E7EB;
+  background: white;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.skeuo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+}
+
+.inner-glow-btn {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.active-nav-glow {
+  box-shadow: inset 0 0 12px rgba(91, 61, 245, 0.1);
 }
 
 /* Custom Scrollbars */
