@@ -35,6 +35,8 @@ export interface ReputationSearchResponse {
   risk_score: number;
   risk_level: 'Safe' | 'Medium Risk' | 'High Risk';
   last_reported_at?: string;
+  timeline?: { scam_category: string; risk_score: number; date: string }[];
+  insights?: string;
 }
 
 export interface ReportCreate {

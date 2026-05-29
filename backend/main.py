@@ -274,87 +274,103 @@ def report_scam(report: schemas.ReportCreate, db: Database = Depends(get_db)):
     }
 
 @app.get("/api/search-reputation", response_model=schemas.ReputationSearchResponse)
-def search_reputation(query: str, db: Database = Depends(get_db)):
+def search_reputation(query: str, type: Optional[str] = None, db: Database = Depends(get_db)):
     """
     Search the threat base for malicious phone numbers, domains, or wallet addresses.
-    Returns real-time risk classification and total community complaints.
+    Supports strict type filtering and returns chronological timeline events with community insights.
     """
     q_clean = query.strip()
     
-    # 1. Check if it's a crypto wallet address (Hex starting with 0x or standard BTC formats)
-    if q_clean.startswith("0x") or len(q_clean) >= 26 and any(c.isdigit() for c in q_clean):
+    # 1. Determine resolved search type
+    resolved_type = "unknown"
+    if type and type in ["wallet", "phone", "domain"]:
+        resolved_type = type
+    else:
+        # Fallback to automatic heuristic type matching
+        if q_clean.startswith("0x") or len(q_clean) >= 26 and any(c.isdigit() for c in q_clean):
+            resolved_type = "wallet"
+        elif q_clean.startswith("+") or (q_clean.replace(" ", "").replace("-", "").isdigit() and len(q_clean) >= 7):
+            resolved_type = "phone"
+        else:
+            resolved_type = "domain"
+            
+    # 2. Perform collection lookup based on type
+    report_count = 0
+    risk_score = 0
+    risk_level = "Safe"
+    last_reported_at = None
+    
+    if resolved_type == "wallet":
         wallet = db.wallets.find_one({"wallet_address": q_clean})
         if wallet:
-            risk_level = "High Risk" if wallet["risk_score"] > 70 else "Medium Risk" if wallet["risk_score"] > 30 else "Safe"
-            return {
-                "query": q_clean,
-                "type": "wallet",
-                "report_count": wallet["report_count"],
-                "risk_score": wallet["risk_score"],
-                "risk_level": risk_level,
-                "last_reported_at": wallet.get("last_reported_at")
-            }
-        else:
-            return {
-                "query": q_clean,
-                "type": "wallet",
-                "report_count": 0,
-                "risk_score": 0,
-                "risk_level": "Safe"
-            }
+            report_count = wallet["report_count"]
+            risk_score = wallet["risk_score"]
+            last_reported_at = wallet.get("last_reported_at")
             
-    # 2. Check if it looks like a phone number (+ or digits only)
-    elif q_clean.startswith("+") or (q_clean.replace(" ", "").replace("-", "").isdigit() and len(q_clean) >= 7):
+    elif resolved_type == "phone":
         phone_clean = q_clean.replace(" ", "").replace("-", "")
-        # Find partial or exact match
         phone = db.phone_numbers.find_one({"phone_number": {"$regex": re.escape(phone_clean)}})
         if phone:
-            risk_level = "High Risk" if phone["risk_score"] > 70 else "Medium Risk" if phone["risk_score"] > 30 else "Safe"
-            return {
-                "query": q_clean,
-                "type": "phone",
-                "report_count": phone["report_count"],
-                "risk_score": phone["risk_score"],
-                "risk_level": risk_level,
-                "last_reported_at": phone.get("last_reported_at")
-            }
-        else:
-            return {
-                "query": q_clean,
-                "type": "phone",
-                "report_count": 0,
-                "risk_score": 0,
-                "risk_level": "Safe"
-            }
+            report_count = phone["report_count"]
+            risk_score = phone["risk_score"]
+            last_reported_at = phone.get("last_reported_at")
             
-    # 3. Default to domain name lookup
-    else:
+    elif resolved_type == "domain":
         domain_clean = q_clean
         if q_clean.startswith(("http://", "https://")):
             try:
                 domain_clean = urllib.parse.urlparse(q_clean).hostname or q_clean
             except Exception:
                 pass
-        
         domain = db.domains.find_one({"domain_name": {"$regex": re.escape(domain_clean)}})
         if domain:
-            risk_level = "High Risk" if domain["risk_score"] > 70 else "Medium Risk" if domain["risk_score"] > 30 else "Safe"
-            return {
-                "query": q_clean,
-                "type": "domain",
-                "report_count": domain["report_count"],
-                "risk_score": domain["risk_score"],
-                "risk_level": risk_level,
-                "last_reported_at": domain.get("last_reported_at")
-            }
+            report_count = domain["report_count"]
+            risk_score = domain["risk_score"]
+            last_reported_at = domain.get("last_reported_at")
+            
+    # Determine risk level category
+    if risk_score > 70:
+        risk_level = "High Risk"
+    elif risk_score > 30:
+        risk_level = "Medium Risk"
+    else:
+        risk_level = "Safe"
+        
+    # 3. Pull chronological timeline events from reports matching the target value
+    reports_cursor = list(db.reports.find({"target_value": {"$regex": re.escape(q_clean), "$options": "i"}}).sort("created_at", -1))
+    timeline = []
+    for r in reports_cursor:
+        created_at_val = r.get("created_at")
+        if isinstance(created_at_val, str):
+            try:
+                date_str = datetime.fromisoformat(created_at_val).strftime("%b %d, %Y")
+            except Exception:
+                date_str = "Recent"
         else:
-            return {
-                "query": q_clean,
-                "type": "domain",
-                "report_count": 0,
-                "risk_score": 0,
-                "risk_level": "Safe"
-            }
+            date_str = created_at_val.strftime("%b %d, %Y") if created_at_val else "Recent"
+            
+        timeline.append({
+            "scam_category": r["scam_category"],
+            "risk_score": r["risk_score"],
+            "date": date_str
+        })
+        
+    # 4. Generate dynamic community insights summary text
+    if report_count > 0:
+        insights = f"Highly suspicious threat! We found {report_count} active incident reports for this {resolved_type} in our community threat intelligence database. Maximum reported risk score reached is {risk_score}/100. Exercise extreme caution."
+    else:
+        insights = f"Clean profile! No community scam complaints have been logged against this {resolved_type}. Still, always verify banking and transaction details manually."
+        
+    return {
+        "query": q_clean,
+        "type": resolved_type,
+        "report_count": report_count,
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "last_reported_at": last_reported_at,
+        "timeline": timeline,
+        "insights": insights
+    }
 
 @app.get("/api/dashboard-stats", response_model=schemas.DashboardStatsResponse)
 def get_dashboard_stats(db: Database = Depends(get_db)):

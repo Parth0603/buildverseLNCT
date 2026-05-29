@@ -17,8 +17,10 @@ class UserResponse(UserBase):
         from_attributes = True
 
 # --- Reputation Search Schemas ---
-class ReputationSearchRequest(BaseModel):
-    query: str = Field(..., description="Phone number, domain name, or wallet address to search")
+class SearchTimelineItem(BaseModel):
+    scam_category: str
+    risk_score: int
+    date: str
 
 class ReputationSearchResponse(BaseModel):
     query: str
@@ -27,6 +29,8 @@ class ReputationSearchResponse(BaseModel):
     risk_score: int
     risk_level: str # 'Safe', 'Medium Risk', 'High Risk'
     last_reported_at: Optional[datetime] = None
+    timeline: List[SearchTimelineItem] = []
+    insights: Optional[str] = None
 
 # --- Report Schemas ---
 class ReportCreate(BaseModel):

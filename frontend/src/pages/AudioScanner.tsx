@@ -7,6 +7,9 @@ import RiskScore from '../components/RiskScore';
 export default function AudioScanner() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showProgress, setShowProgress] = useState(false);
   const [result, setResult] = useState<AudioScanResponse | null>(null);
   const [error, setError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -20,6 +23,31 @@ export default function AudioScanner() {
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const droppedFile = e.dataTransfer.files[0];
+      const ext = droppedFile.name.split('.').pop()?.toLowerCase();
+      if (['mp3', 'wav', 'm4a'].includes(ext || '')) {
+        setFile(droppedFile);
+        setError('');
+        setResult(null);
+      } else {
+        setError('Unsupported file type. Please upload MP3, WAV, or M4A.');
+      }
+    }
+  };
+
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
@@ -27,14 +55,30 @@ export default function AudioScanner() {
     setLoading(true);
     setError('');
     setResult(null);
+    setShowProgress(true);
+    setUploadProgress(0);
+
+    // Simulate active network upload progression
+    const interval = setInterval(() => {
+      setUploadProgress((p) => {
+        if (p >= 90) {
+          clearInterval(interval);
+          return 90;
+        }
+        return p + 10;
+      });
+    }, 100);
 
     try {
       const data = await analyzeAudio(file);
+      setUploadProgress(100);
       setResult(data);
     } catch (err: any) {
       setError(err.message || 'Failed to analyze audio. Please ensure the backend is running.');
     } finally {
+      clearInterval(interval);
       setLoading(false);
+      setTimeout(() => setShowProgress(false), 500);
     }
   };
 
@@ -83,7 +127,14 @@ export default function AudioScanner() {
             <form onSubmit={handleScan} className="space-y-5">
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-200 hover:border-primary/40 rounded-2xl p-8 text-center cursor-pointer hover:bg-slate-50/50 transition-all duration-200 flex flex-col items-center justify-center space-y-3"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center space-y-3 ${
+                  isDragging 
+                    ? 'border-primary bg-primary-light/10 shadow-inner scale-[0.99]' 
+                    : 'border-slate-200 hover:border-primary/40 hover:bg-slate-50/50'
+                }`}
               >
                 <input 
                   type="file" 
@@ -106,11 +157,26 @@ export default function AudioScanner() {
                   </div>
                 ) : (
                   <div>
-                    <span className="text-sm font-bold text-slate-700 block">Click to Browse Audio Recording</span>
+                    <span className="text-sm font-bold text-slate-700 block">Drag & Drop or Click to Browse Audio</span>
                     <span className="text-xs text-slate-400 block mt-1 leading-relaxed">Supports MP3, WAV, or M4A (Max 15MB)</span>
                   </div>
                 )}
               </div>
+
+              {showProgress && (
+                <div className="w-full space-y-1.5 p-2 bg-slate-50/50 border border-slate-100 rounded-xl animate-fade-in">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span>Uploading and transcribing voice bytes</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className="bg-primary h-full rounded-full transition-all duration-300 ease-out" 
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">

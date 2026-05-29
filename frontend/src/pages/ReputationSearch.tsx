@@ -6,6 +6,7 @@ import RiskScore from '../components/RiskScore';
 
 export default function ReputationSearch() {
   const [query, setQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'all' | 'phone' | 'domain' | 'wallet'>('all');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReputationSearchResponse | null>(null);
   const [error, setError] = useState('');
@@ -19,7 +20,7 @@ export default function ReputationSearch() {
     setResult(null);
 
     try {
-      const data = await searchReputation(query);
+      const data = await searchReputation(query, activeTab === 'all' ? undefined : activeTab);
       setResult(data);
     } catch (err: any) {
       setError(err.message || 'Failed to complete search query.');
@@ -50,8 +51,27 @@ export default function ReputationSearch() {
 
       {/* Input */}
       <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-5">
-        <h2 className="font-extrabold text-slate-800 tracking-tight">Database Query Console</h2>
-        
+        {/* Active tab selectors for filtering */}
+        <div className="flex border-b border-slate-100 pb-1 gap-2">
+          {['all', 'phone', 'domain', 'wallet'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab as any);
+                setResult(null);
+              }}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-200 ${
+                activeTab === tab 
+                  ? 'border-primary text-primary' 
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {tab === 'all' ? 'All Logs' : tab === 'phone' ? 'Phone Line' : tab === 'domain' ? 'Domain Link' : 'Web3 Wallet'}
+            </button>
+          ))}
+        </div>
+
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -133,6 +153,13 @@ export default function ReputationSearch() {
             <RiskScore score={result.risk_score} variant="badge" />
           </div>
 
+          {result.insights && (
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-semibold text-slate-600 leading-relaxed">
+              <span className="text-[9px] uppercase font-extrabold tracking-widest text-slate-400 block mb-1">Database Insights</span>
+              {result.insights}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 border-t border-slate-50 pt-5">
             
             <div className="bg-slate-50/60 border border-slate-50 p-4 rounded-xl space-y-1.5">
@@ -194,6 +221,42 @@ export default function ReputationSearch() {
               </div>
             )}
           </div>
+
+          {/* Chronological Stepper Timeline */}
+          {result.timeline && result.timeline.length > 0 && (
+            <div className="border-t border-slate-100 pt-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-slate-400" />
+                <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Threat Incidents Timeline</h3>
+              </div>
+              
+              <div className="relative pl-5 border-l border-slate-200 ml-2 space-y-4">
+                {result.timeline.map((item, index) => (
+                  <div key={index} className="relative">
+                    {/* Stepper Dot */}
+                    <span className={`absolute -left-[25.5px] top-1.5 w-2.5 h-2.5 rounded-full border-2 bg-white ${
+                      item.risk_score > 70 ? 'border-danger' : item.risk_score > 30 ? 'border-warning' : 'border-success'
+                    }`} />
+                    
+                    <div className="bg-slate-50/60 hover:bg-slate-50 border border-slate-50 hover:border-slate-100 p-3 rounded-xl transition-all duration-150">
+                      <div className="flex justify-between items-center gap-4">
+                        <div>
+                          <span className="text-[9px] font-extrabold text-slate-400 block uppercase tracking-wider">{item.date}</span>
+                          <span className="text-xs font-bold text-slate-800 block mt-0.5">{item.scam_category}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Risk Index:</span>
+                          <span className={`text-xs font-extrabold ${
+                            item.risk_score > 70 ? 'text-danger' : item.risk_score > 30 ? 'text-warning' : 'text-success'
+                          }`}>{item.risk_score}/100</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       )}

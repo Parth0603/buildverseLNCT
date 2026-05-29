@@ -61,9 +61,13 @@ export async function reportScam(report: ReportCreate): Promise<ReportResponse> 
   return response.json();
 }
 
-export async function searchReputation(query: string): Promise<ReputationSearchResponse> {
+export async function searchReputation(query: string, type?: string): Promise<ReputationSearchResponse> {
   const encodedQuery = encodeURIComponent(query);
-  const response = await fetch(`${API_BASE_URL}/api/search-reputation?query=${encodedQuery}`);
+  let url = `${API_BASE_URL}/api/search-reputation?query=${encodedQuery}`;
+  if (type) {
+    url += `&type=${encodeURIComponent(type)}`;
+  }
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error('Failed to query search parameters in databases.');
   }
