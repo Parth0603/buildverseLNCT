@@ -8,18 +8,14 @@ import type {
   DashboardStats
 } from './types';
 
-// Resilient dynamic base URL resolver for local dev, sandboxes, or Vercel production deployments
+// Resilient dynamic base URL resolver for local dev, sandboxes, or Vercel Services deployments
 const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // Vercel serves APIs directly on the same origin (e.g. /api/analyze-message)
-    if (hostname.endsWith('.vercel.app') || hostname.includes('vercel')) {
-      return window.location.origin;
-    }
-    // If running in an integrated cloud preview environment, route requests through same-origin proxy prefix
+    // If running in any deployed/preview cloud environment (Vercel Services, IDX, etc.)
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
       return `${window.location.origin}/_/backend`;
     }
