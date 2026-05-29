@@ -6,11 +6,12 @@ from backend.config import settings
 
 def analyze_url_heuristics(url: str) -> Dict[str, Any]:
     """
-    Performs comprehensive URL validation and active network threat scoring:
+    Performs comprehensive URL validation and active network threat scoring automatically:
     - Active server connection probe (checks if the URL is online or dead)
-    - Hidden redirect hijacks audit
+    - Hidden redirect hijacks audit (only penalizes cross-domain redirects)
     - Hostname parsing & TLD checks
     - SSL encryption check
+    - Automated Brand Verification (SLD + TLD analysis to verify official domains)
     - Typosquatting brand mimicking detections (visual character spoofs)
     - Phishing keyword captures in path/domain
     - Excessive redirect/subdomain count risk index
@@ -30,14 +31,37 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
         
     hostname_lower = hostname.lower()
     
-    # Check for official trusted domains (whitelist to prevent false positives)
-    trusted_roots = ["google.com", "netflix.com", "netflix.in", "paypal.com", "metamask.io", "chase.com", "venmo.com", "binance.com", "github.com"]
-    is_trusted = False
-    for root in trusted_roots:
-        if hostname_lower == root or hostname_lower.endswith("." + root):
-            is_trusted = True
-            break
-            
+    # --- 1. AUTOMATED DOMAIN & SLD STRUCTURE PARSER ---
+    parts = hostname_lower.split('.')
+    sld = ""
+    tld = ""
+    if len(parts) >= 2:
+        sld = parts[-2]
+        tld = "." + parts[-1]
+        # Handle country code double extensions (like co.uk, com.br, co.in)
+        if len(parts) >= 3 and parts[-1] in ["uk", "br", "in", "jp", "au"] and parts[-2] in ["co", "com", "net", "org"]:
+            sld = parts[-3]
+            tld = "." + parts[-2] + "." + parts[-1]
+
+    # Protected major brands and their official secure registries
+    official_brands = {
+        "google": ".com",
+        "netflix": ".com",
+        "paypal": ".com",
+        "metamask": ".io",
+        "chase": ".com",
+        "venmo": ".com",
+        "binance": ".com",
+        "github": ".com"
+    }
+
+    # Automatically check if this is the authentic, verified brand registry
+    is_official_brand = False
+    if sld in official_brands:
+        # Matches official TLD or secure regional registry subdomains
+        if tld == official_brands[sld] or tld in [".in", ".co.in", ".co.uk", ".com.br", ".com.au"]:
+            is_official_brand = True
+
     # Initialize metric buffers
     risk_score = 0
     ssl_active = url.startswith("https://")
@@ -47,7 +71,7 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
         "Always navigate to legitimate banking or corporate sites using your own bookmarks."
     ]
     
-    # --- 1. Active Server Connection Probe & Redirect Checker ---
+    # --- 2. Active Server Connection Probe & Redirect Checker ---
     is_online = False
     final_destination = url
     try:
@@ -68,7 +92,16 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
                     f"Redirect Detected: The URL redirected {len(response.history)} times "
                     f"before landing on: {final_destination}"
                 )
-                if len(response.history) >= 2 and not is_trusted:
+                
+                # AUTOMATED REDIRECT FILTER: Only penalize redirects if they jump to a completely different domain
+                dest_parsed = urllib.parse.urlparse(final_destination)
+                dest_host = (dest_parsed.hostname or "").lower()
+                
+                is_same_brand_redirect = False
+                if sld and sld in dest_host:
+                    is_same_brand_redirect = True
+                    
+                if len(response.history) >= 2 and not is_same_brand_redirect and not is_official_brand:
                     risk_score += 20
                     findings.append("High Redirect Risk: Multi-hop redirect chains are frequently used by scammers to mask fraudulent destinations.")
             else:
@@ -82,26 +115,27 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
         is_online = False
         findings.append("⚠️ Broken / Inactive URL: This link does not resolve to an active server, is offline, or is completely broken.")
         recommendations.append("The link is currently inactive. However, do not click it in the future as malicious servers can turn online dynamically.")
-        if not is_trusted:
+        if not is_official_brand:
             risk_score += 10  # Flag a minor baseline suspicion for broken unsolicited links
- 
+
     # Add active status to findings
     if is_online:
         findings.append("Status: Active & Online. The destination server successfully answered our connection request.")
     else:
         findings.append("Status: Inactive & Offline. The URL could not be resolved or reached.")
- 
-    # --- 2. SSL Status ---
+
+    # --- 3. SSL Status ---
     if not ssl_active:
-        if not is_trusted:
+        if not is_official_brand:
             risk_score += 35
         findings.append("HTTP Insecure: The URL does not use SSL encryption (HTTP). Your connection can be intercepted.")
         recommendations.append("Ensure the page protocol is 'https://' before sending credentials.")
     else:
         findings.append("HTTPS Secure: Active SSL encryption detected (Note: modern phishing sites can also acquire free SSL).")
         
-    if not is_trusted:
-        # --- 3. Suspicious Top-Level Domains (TLDs) ---
+    # --- 4. Core Suspicious Heuristics (Bypassed entirely for verified authentic brands) ---
+    if not is_official_brand:
+        # A. Suspicious Top-Level Domains (TLDs)
         dangerous_tlds = [".xyz", ".info", ".top", ".cn", ".cc", ".biz", ".work", ".loan", ".zip", ".gq", ".cf", ".ml", ".icu", ".click"]
         matched_tld = None
         for tld in dangerous_tlds:
@@ -114,7 +148,7 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
             findings.append(f"High-Risk TLD: Hostname ends with a suspicious TLD '{matched_tld}' frequently used by scammers.")
             recommendations.append("Verify the registry origin if the domain uses high-risk low-cost generic TLDs.")
             
-        # --- 4. Phishing Keywords in Domain or Path ---
+        # B. Phishing Keywords in Domain or Path (e.g. netflix-payment.com)
         phishing_keywords = ["chase", "paypal", "venmo", "netflix", "bank", "login", "secure", "verify", "update", "signin", "wallet", "crypto", "support", "bonus", "reward", "refund", "locked", "confirm"]
         matched_keywords = []
         for keyword in phishing_keywords:
@@ -126,7 +160,7 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
             findings.append(f"Threat keywords found: Domain or path contains suspicious terms: {', '.join(matched_keywords)}.")
             recommendations.append("Avoid logging in on sites that pack brand or security-themed terms into the subdomains or pathways.")
             
-        # --- 5. Brand Typosquatting ---
+        # C. Brand Typosquatting (Mimicking characters like n3tflix or m3tamask)
         brand_typos = {
             r"g[o0][o0]g[l1]e": "Google",
             r"ch[a4]s[e3]": "Chase Bank",
@@ -142,7 +176,7 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
                 findings.append(f"Typosquatting Alert: URL mimics the official brand '{brand}' using character substitution tricks.")
                 recommendations.append(f"This domain is definitely trying to impersonate {brand}. Report it and close the tab.")
                 
-        # --- 6. URL Length & Subdomains ---
+        # D. URL Length & Subdomains
         url_length = len(original_url)
         if url_length > 75:
             risk_score += 10
@@ -154,8 +188,8 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
             findings.append(f"Excessive subdomains: Contains {subdomains_count} subdomains. This is a common redirection obfuscation technique.")
             recommendations.append("Check the primary root domain name at the very end of the hostname string.")
     else:
-        findings.append("Verified Official Domain: This is the official, verified registry domain for the brand.")
-        risk_score = 0g.")
+        findings.append("Verified Official Domain: This is the official, authentic registry domain for this brand.")
+        risk_score = 0
 
     # Bound risk score between 0 and 100
     risk_score = min(max(risk_score, 0), 100)
@@ -173,7 +207,7 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
         phish_detected = True
         recommendations.append("Close your web browser tab immediately to prevent data exposure.")
 
-    # Estimated Domain Age index (high risk freshly registered, or offline links)
+    # Estimated Domain Age index (high risk fresh domains, safe aged official domains)
     domain_age_days = 15 if risk_score > 70 or not is_online else 1250
 
     return {
