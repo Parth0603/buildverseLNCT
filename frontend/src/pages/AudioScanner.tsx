@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { analyzeAudio, API_BASE_URL } from '../api';
 import type { AudioScanResponse } from '../types';
 import { Radio, Mic, AlertCircle, RefreshCw, CheckCircle, FileAudio, Play, Square } from 'lucide-react';
@@ -13,7 +13,11 @@ export default function AudioScanner() {
   const [result, setResult] = useState<AudioScanResponse | null>(null);
   const [error, setError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackIntervalRef = useRef<any>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -103,8 +107,131 @@ export default function AudioScanner() {
     }
   };
 
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return '0:00';
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  useEffect(() => {
+    // Initialize standard Audio element
+    const audioObj = new Audio();
+    audioObj.ontimeupdate = () => {
+      setCurrentTime(audioObj.currentTime);
+    };
+    audioObj.onloadedmetadata = () => {
+      setDuration(audioObj.duration);
+    };
+    audioRef.current = audioObj;
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      window.speechSynthesis.cancel();
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Whenever file or result changes, reset the playback state
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+    window.speechSynthesis.cancel();
+    if (playbackIntervalRef.current) {
+      clearInterval(playbackIntervalRef.current);
+    }
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [file, result]);
+
   const togglePlayback = () => {
-    setIsPlaying(!isPlaying);
+    if (!result) return;
+
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      window.speechSynthesis.cancel();
+      if (playbackIntervalRef.current) {
+        clearInterval(playbackIntervalRef.current);
+      }
+      setIsPlaying(false);
+    } else {
+      const isMock = file && (file.name.startsWith('mock_scam_') || file.size < 100);
+      
+      if (isMock) {
+        setIsPlaying(true);
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(result.transcript);
+        
+        // Load natural sounding speech voices
+        const voices = window.speechSynthesis.getVoices();
+        const englishVoice = voices.find(v => v.lang.startsWith('en-') && v.name.includes('Google')) || 
+                             voices.find(v => v.lang.startsWith('en-')) || 
+                             voices[0];
+        if (englishVoice) {
+          utterance.voice = englishVoice;
+        }
+        
+        utterance.rate = 0.95; // Slightly slower, more deliberate robocall sound
+        
+        // Estimate speech duration: roughly 2.5 words per second
+        const words = result.transcript.split(/\s+/).length;
+        const estDuration = Math.max(5, Math.ceil(words / 2.5));
+        
+        setCurrentTime(0);
+        setDuration(estDuration);
+        
+        if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current);
+        playbackIntervalRef.current = setInterval(() => {
+          setCurrentTime((prev) => {
+            if (prev >= estDuration) {
+              clearInterval(playbackIntervalRef.current);
+              return estDuration;
+            }
+            return prev + 1;
+          });
+        }, 1000);
+        
+        utterance.onend = () => {
+          setIsPlaying(false);
+          if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current);
+          setCurrentTime(0);
+        };
+        
+        utterance.onerror = () => {
+          setIsPlaying(false);
+          if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current);
+        };
+        
+        window.speechSynthesis.speak(utterance);
+      } else if (file) {
+        if (audioRef.current) {
+          setIsPlaying(true);
+          const objectUrl = URL.createObjectURL(file);
+          audioRef.current.src = objectUrl;
+          
+          audioRef.current.play().catch((err) => {
+            console.error("Audio playback error:", err);
+            setIsPlaying(false);
+          });
+          
+          audioRef.current.onended = () => {
+            setIsPlaying(false);
+            setCurrentTime(0);
+          };
+        }
+      }
+    }
   };
 
   return (
@@ -313,7 +440,9 @@ export default function AudioScanner() {
                     />
                   ))}
                 </div>
-                <span className="text-[10px] font-mono text-slate-400 shrink-0">0:18</span>
+                <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
               </div>
 
               {/* Category */}
