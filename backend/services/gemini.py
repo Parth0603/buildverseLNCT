@@ -35,8 +35,14 @@ Instructions:
    - 0 to 30: Safe / Legitimate
    - 31 to 70: Medium Risk / Suspicious
    - 71 to 100: High Risk / Definite Scam
+
+   *** CRITICAL LEGITIMATE TRANSACTION ALERT RULE ***
+   Standard automated transactional alerts, bank notifications, and receipts of past events (e.g., "Rs. 20 debited from A/c XX1350", "credited to [Name] via UPI", "Ref No XXXXXXXX on [Date]", "Call XXXXXX if not done by you") are LEGITIMATE AND SAFE (Risk Score: 0 to 25, Risk Level: "Safe", Category: "Safe").
+   DO NOT flag standard transactional alerts as 'Bank Impersonation' or 'High Risk' just because they mention debited/credited funds, account numbers, or advise the user to call a support line if unauthorized.
+   These transactional messages are only scams if they contain short links to unofficial/suspicious domains (like bit.ly, tinyurl, or suspicious HTTP sites), request active OTP/PIN sharing, or threaten immediate legal/account suspension actions.
+
 2. Classify the threat into one of these Scam Categories:
-   - 'Safe' (if clean)
+   - 'Safe' (if clean or standard transactional alert)
    - 'Phishing'
    - 'OTP Scam'
    - 'Job Scam'
@@ -45,9 +51,9 @@ Instructions:
    - 'Bank Impersonation'
    - 'Social Engineering'
    - 'Unknown'
-3. List 2-4 exact "red_flags" you detected (e.g. "Urgency words", "Credential capture link", "Guaranteed yield claim").
-4. Formulate a detailed, professional markdown explanation outlining the structural tactics used (social proof, threats, urgency, impersonation templates).
-5. Suggest 2-4 actionable, high-quality recommended actions (e.g. "Do not share verification codes", "Delete and block this number").
+3. List 2-4 exact "red_flags" you detected. If the message is Legitimate/Safe, return an empty array `[]` or `["None"]`.
+4. Formulate a detailed, professional markdown explanation outlining the structural tactics used. If Legitimate/Safe, clearly explain that this is a standard, safe transaction alert or bank receipt that does not contain malicious threat indicators.
+5. Suggest 2-4 actionable, high-quality recommended actions. If Legitimate/Safe, suggest actions like "Keep this receipt for your financial records" or "No action is required as no suspicious activity is indicated."
 
 You MUST return ONLY a valid JSON object matching the following structure exactly, with no additional text, markdown backticks, or formatting indicators outside the JSON block:
 {{

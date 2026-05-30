@@ -8,6 +8,28 @@ def analyze_message_heuristics(content: str) -> Dict[str, Any]:
     """
     content_upper = content.upper()
     
+    # --- Pre-check for Legitimate Transaction Receipts to prevent False Positives ---
+    is_standard_txn = False
+    if "DEBITED" in content_upper or "CREDITED" in content_upper:
+        if "UPI" in content_upper or "REF NO" in content_upper or "A/C" in content_upper:
+            # Check that it doesn't contain actual suspicious targets
+            if not any(token in content_upper for token in ["VERIFY PASSWORD", "LOCKED", "SUSPENDED", "BLOCKED", "HTTP", "WWW.", ".COM", ".NET"]):
+                is_standard_txn = True
+
+    if is_standard_txn:
+        return {
+            "risk_score": 10,
+            "risk_level": "Safe",
+            "scam_category": "Safe",
+            "confidence_score": 90,
+            "red_flags": ["None"],
+            "explanation": "### Scan Results: Clean / Safe\n\nThis message is classified as an automated, standard transaction alert or bank receipt. It contains typical banking notification structures (debit/credit confirmations) with no associated high-risk scam triggers, suspended status warnings, or phishing links.",
+            "recommended_actions": [
+                "Keep this automated transaction notification for your financial records.",
+                "No action is required as no suspicious threat indicators were detected."
+            ]
+        }
+    
     # Initialize variables
     risk_score = 0
     red_flags = []
