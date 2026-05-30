@@ -1,17 +1,15 @@
 import os
 import logging
-import assemblyai as aai
+import time
+import httpx
 from backend.config import settings
 
 logger = logging.getLogger("scamradar.assemblyai")
 
-# Configure AssemblyAI key if provided
-if settings.ASSEMBLYAI_API_KEY:
-    aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
-
 def transcribe_audio_file(file_path: str) -> str:
     """
-    Transcribe a local audio file (.mp3, .wav, .m4a) using AssemblyAI's Cloud Transcriber.
+    Transcribe a local audio file (.mp3, .wav, .m4a) using AssemblyAI's Cloud REST API directly.
+    Bypasses strict client SDK models to avoid pydantic enum mismatch validation warnings.
     Gracefully falls back to a realistic mock phishing transcript if unconfigured/offline.
     """
     if not settings.ASSEMBLYAI_API_KEY:
@@ -19,14 +17,66 @@ def transcribe_audio_file(file_path: str) -> str:
         return get_mock_audio_transcript(file_path)
         
     try:
-        transcriber = aai.Transcriber()
-        # Transcribe takes a file path or URL
-        transcript = transcriber.transcribe(file_path)
+        headers = {
+            "authorization": settings.ASSEMBLYAI_API_KEY
+        }
         
-        if transcript.status == aai.TranscriptStatus.error:
-            raise Exception(transcript.error)
+        # 1. Upload the local file binary to AssemblyAI CDN
+        logger.info(f"Uploading local file {file_path} to AssemblyAI...")
+        with open(file_path, "rb") as f:
+            upload_response = httpx.post(
+                "https://api.assemblyai.com/v2/upload", 
+                headers=headers, 
+                data=f, 
+                timeout=45.0
+            )
             
-        return transcript.text
+        if upload_response.status_code != 200:
+            raise Exception(f"Upload failed (HTTP {upload_response.status_code}): {upload_response.text}")
+            
+        upload_url = upload_response.json().get("upload_url")
+        if not upload_url:
+            raise Exception("No upload_url returned in upload response.")
+            
+        # 2. Submit the transcription request using active speech_models
+        logger.info("Submitting transcription request with speech_models universal-2 and universal-3-pro...")
+        transcript_url = "https://api.assemblyai.com/v2/transcript"
+        payload = {
+            "audio_url": upload_url,
+            "speech_models": ["universal-3-pro", "universal-2"]
+        }
+        
+        headers_json = {
+            "authorization": settings.ASSEMBLYAI_API_KEY,
+            "content-type": "application/json"
+        }
+        submit_response = httpx.post(transcript_url, json=payload, headers=headers_json, timeout=10.0)
+        if submit_response.status_code != 200:
+            raise Exception(f"Submit failed (HTTP {submit_response.status_code}): {submit_response.text}")
+            
+        transcript_id = submit_response.json().get("id")
+        if not transcript_id:
+            raise Exception("No transcript ID returned from submission.")
+            
+        # 3. Poll for the transcription completed status
+        logger.info(f"Polling transcription status for ID {transcript_id}...")
+        for attempt in range(40):
+            time.sleep(1.5)
+            poll_response = httpx.get(f"{transcript_url}/{transcript_id}", headers=headers, timeout=10.0)
+            if poll_response.status_code != 200:
+                continue
+                
+            poll_data = poll_response.json()
+            status = poll_data.get("status")
+            logger.info(f"Attempt {attempt+1}: Transcription status is '{status}'")
+            
+            if status == "completed":
+                logger.info("AssemblyAI transcription completed successfully!")
+                return poll_data.get("text", "")
+            elif status == "error":
+                raise Exception(poll_data.get("error", "Unknown AssemblyAI transcription error"))
+                
+        raise Exception("AssemblyAI transcription polling timed out.")
         
     except Exception as e:
         logger.error(f"AssemblyAI transcription failure: {str(e)}. Using fallback mock transcript.")

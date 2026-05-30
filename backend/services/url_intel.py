@@ -4,6 +4,88 @@ from typing import Dict, Any, List
 import httpx
 from backend.config import settings
 
+def check_google_safe_browsing(url: str) -> List[str]:
+    """
+    Queries Google Safe Browsing API v4 for threat matching.
+    Returns a list of threat descriptions if matches are found, else empty list.
+    """
+    if not settings.SAFE_BROWSING_API_KEY:
+        return []
+        
+    api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={settings.SAFE_BROWSING_API_KEY}"
+    payload = {
+        "client": {
+            "clientId": "scamradar-x",
+            "clientVersion": "1.0.0"
+        },
+        "threatInfo": {
+            "threatTypes": [
+                "MALWARE", 
+                "SOCIAL_ENGINEERING", 
+                "UNWANTED_SOFTWARE", 
+                "POTENTIALLY_HARMFUL_APPLICATION"
+            ],
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": [{"url": url}]
+        }
+    }
+    
+    try:
+        response = httpx.post(api_url, json=payload, timeout=2.5)
+        if response.status_code == 200:
+            data = response.json()
+            if "matches" in data:
+                threats = []
+                for match in data["matches"]:
+                    t_type = match.get("threatType", "")
+                    if t_type == "SOCIAL_ENGINEERING":
+                        threats.append("Social Engineering / Phishing")
+                    elif t_type == "MALWARE":
+                        threats.append("Malware / Virus Host")
+                    elif t_type == "UNWANTED_SOFTWARE":
+                        threats.append("Unwanted / Harmful Software")
+                    elif t_type == "POTENTIALLY_HARMFUL_APPLICATION":
+                        threats.append("Potentially Harmful Application")
+                    else:
+                        threats.append(t_type)
+                return list(set(threats))
+    except Exception:
+        pass
+    return []
+
+def check_urlhaus(url: str) -> List[str]:
+    """
+    Queries abuse.ch URLhaus API v1 for malicious URL entries.
+    Requires an active abuse.ch Auth-Key configured in Settings/environment.
+    """
+    if not settings.URLHAUS_API_KEY:
+        return []
+        
+    api_url = "https://urlhaus-api.abuse.ch/v1/url/"
+    headers = {
+        "Auth-Key": settings.URLHAUS_API_KEY
+    }
+    payload = {
+        "url": url
+    }
+    
+    try:
+        response = httpx.post(api_url, data=payload, headers=headers, timeout=2.5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("query_status") == "ok":
+                threats = []
+                threat_type = data.get("threat", "")
+                if threat_type == "malware_download":
+                    threats.append("Malware Payload Download")
+                else:
+                    threats.append(threat_type or "Known Malicious Host")
+                return threats
+    except Exception:
+        pass
+    return []
+
 def analyze_url_heuristics(url: str) -> Dict[str, Any]:
     """
     Performs comprehensive URL validation and active network threat scoring automatically:
@@ -70,6 +152,20 @@ def analyze_url_heuristics(url: str) -> Dict[str, Any]:
         "Do not input usernames, passwords, or financial cards on this page.",
         "Always navigate to legitimate banking or corporate sites using your own bookmarks."
     ]
+    
+    # --- 1B. Google Safe Browsing Check ---
+    google_threats = check_google_safe_browsing(original_url)
+    if google_threats:
+        risk_score += 95
+        findings.append(f"🔴 Google Safe Browsing Alert: This URL is blacklisted as a known {', '.join(google_threats)}.")
+        recommendations.append("Google's security intelligence has flagged this page. Close it immediately.")
+        
+    # --- 1C. URLhaus Malware Lookup Check ---
+    urlhaus_threats = check_urlhaus(original_url)
+    if urlhaus_threats:
+        risk_score += 95
+        findings.append(f"☣️ URLhaus Malware Alert: This URL is blacklisted in abuse.ch for distributing: {', '.join(urlhaus_threats)}.")
+        recommendations.append("A community threat intelligence list has flagged this link for malware. Do not open it.")
     
     # --- 2. Active Server Connection Probe & Redirect Checker ---
     is_online = False

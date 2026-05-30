@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     
     # Safe Browsing URL Check API Key (Optional)
     SAFE_BROWSING_API_KEY: str = os.getenv("SAFE_BROWSING_API_KEY", "")
+    
+    # URLhaus abuse.ch API Key (Optional)
+    URLHAUS_API_KEY: str = os.getenv("URLHAUS_API_KEY", "")
 
     # Blockchain Amoy Testnet Mock/Prep Addresses (Future Phase integration placeholders)
     AMOY_TESTNET_RPC: str = "https://rpc-amoy.polygon.technology"
