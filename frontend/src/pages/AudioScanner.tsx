@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { analyzeAudio } from '../api';
+import { analyzeAudio, API_BASE_URL } from '../api';
 import type { AudioScanResponse } from '../types';
 import { Radio, Mic, AlertCircle, RefreshCw, CheckCircle, FileAudio, Play, Square } from 'lucide-react';
 import RiskScore from '../components/RiskScore';
@@ -262,7 +262,7 @@ export default function AudioScanner() {
                 <AlertCircle size={18} /> API Request Blocked
               </div>
               <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                An error occurred during audio dispatch: `{error}`. Verify the local server at `localhost:8000` is online.
+                An error occurred during audio dispatch: `{error}`. Verify the server at `{API_BASE_URL}` is online.
               </p>
             </div>
           )}

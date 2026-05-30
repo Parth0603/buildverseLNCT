@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { searchReputation } from '../api';
+import { searchReputation, API_BASE_URL } from '../api';
 import type { ReputationSearchResponse } from '../types';
 import { Search, ShieldAlert, ShieldCheck, AlertCircle, RefreshCw, FileText, Calendar } from 'lucide-react';
 import RiskScore from '../components/RiskScore';
@@ -133,7 +133,7 @@ export default function ReputationSearch() {
           <div className="space-y-1">
             <span className="text-sm font-extrabold text-slate-800 block">Telemetry Blocked</span>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              We could not dispatch request data: `{error}`. Verify the local server at `localhost:8000` is active.
+              We could not dispatch request data: `{error}`. Verify the server at `{API_BASE_URL}` is active.
             </p>
           </div>
         </div>

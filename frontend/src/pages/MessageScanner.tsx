@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { analyzeMessage } from '../api';
+import { analyzeMessage, API_BASE_URL } from '../api';
 import type { MessageScanResponse } from '../types';
 import { ShieldCheck, Cpu, AlertTriangle, AlertCircle, RefreshCw, Send, CheckCircle } from 'lucide-react';
 import RiskScore from '../components/RiskScore';
@@ -137,7 +137,7 @@ export default function MessageScanner() {
                 <AlertCircle size={18} /> API Request Blocked
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                An error occurred during threat transmission: `{error}`. Confirm backend connection is live (`localhost:8000`).
+                An error occurred during threat transmission: `{error}`. Confirm backend connection is live (`{API_BASE_URL}`).
               </p>
             </div>
           )}

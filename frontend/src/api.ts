@@ -8,22 +8,22 @@ import type {
   DashboardStats
 } from './types';
 
-// Resilient dynamic base URL resolver for local dev, sandboxes, or Vercel Services deployments
+// Resilient dynamic base URL resolver for local dev, sandboxes, or Vercel deployments
 const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // If running in any deployed/preview cloud environment (Vercel Services, IDX, etc.)
+    // If running in any deployed/preview cloud environment
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return `${window.location.origin}/_/backend`;
+      return window.location.origin;
     }
   }
   return 'http://localhost:8000';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 
 export async function analyzeMessage(content: string): Promise<MessageScanResponse> {
   const response = await fetch(`${API_BASE_URL}/api/analyze-message`, {

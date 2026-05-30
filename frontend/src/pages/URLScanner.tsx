@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { analyzeUrl } from '../api';
+import { analyzeUrl, API_BASE_URL } from '../api';
 import type { URLScanResponse } from '../types';
 import { Globe, ShieldCheck, AlertTriangle, AlertCircle, RefreshCw, CheckCircle, ExternalLink } from 'lucide-react';
 import RiskScore from '../components/RiskScore';
@@ -113,7 +113,7 @@ export default function URLScanner() {
           <div className="space-y-1">
             <span className="text-sm font-extrabold text-slate-800 block">Scanner Offline Warning</span>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              We could not dispatch threat assessment metrics. Detail: `{error}`. Verify the local server at `localhost:8000` is online.
+              We could not dispatch threat assessment metrics. Detail: `{error}`. Verify the server at `{API_BASE_URL}` is online.
             </p>
           </div>
         </div>

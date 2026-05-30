@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import tempfile
 import uuid
@@ -17,7 +18,7 @@ from backend.services.gemini import analyze_message_with_gemini
 from backend.services.url_intel import analyze_url_heuristics
 from backend.services.whisper import transcribe_audio_file
 
-root_path = "/_/backend" if os.environ.get("VERCEL") == "1" else ""
+root_path = ""
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
