@@ -132,8 +132,14 @@ import re
 # --- Active Database Loader ---
 try:
     logger.info("Connecting to MongoDB Atlas Cluster...")
-    # Add a short connection timeout to prevent long hangs on invalid DNS
-    client = MongoClient(settings.MONGODB_URI, serverSelectionTimeoutMS=2000, connectTimeoutMS=2000)
+    import certifi
+    # Configure with a robust 5-second timeout and use certifi's secure root CA certs
+    client = MongoClient(
+        settings.MONGODB_URI, 
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=5000, 
+        connectTimeoutMS=5000
+    )
     # Trigger a call to force validation of connection immediately
     client.admin.command('ping')
     db = client[settings.MONGODB_DB_NAME]

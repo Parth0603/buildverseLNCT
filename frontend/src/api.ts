@@ -20,7 +20,7 @@ const getApiBaseUrl = (): string => {
       return window.location.origin;
     }
   }
-  return 'http://localhost:8000';
+  return 'http://localhost:8001';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
